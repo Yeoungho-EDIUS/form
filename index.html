@@ -120,6 +120,35 @@
 
   function show(text, cls) { statusEl.textContent = text; statusEl.className = cls || ''; }
 
+  // 문의가 DB에 저장된 뒤, 담당자 메일로도 알림을 보냅니다 (Google Apps Script).
+  // 메일 발송이 실패해도 접수 결과에는 영향을 주지 않습니다.
+  var MAIL_ENDPOINT = "https://script.google.com/macros/s/AKfycbwcmtuPt9sD5i6TyvlP360bR0ff9CwwL0LXQxr3R0Iuw9X298ZqXevDxEXd6thqCZxm/exec";
+
+  function sendMail(type, name, contact, content, plan, date) {
+    try {
+      var payload = {
+        subject: '[방송국 문의] ' + type + ' - ' + name,
+        fields: [
+          { label: '문의 유형', value: type },
+          { label: '성함', value: name },
+          { label: '연락처', value: contact },
+          { label: '문의 내용', value: content },
+          { label: '기획 내용', value: plan || '없음' },
+          { label: '희망 일정', value: date }
+        ],
+        replyTo: /@/.test(contact) ? contact : '',
+        files: []
+      };
+      // text/plain 으로 보내야 Apps Script에서 별도 설정 없이 받을 수 있습니다.
+      fetch(MAIL_ENDPOINT, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      }).catch(function () {});
+    } catch (err) {}
+  }
+
   form.addEventListener('submit', function (e) {
     e.preventDefault();
 
@@ -166,6 +195,7 @@
       body: JSON.stringify(body)
     }).then(function (res) {
       if (res.ok) {
+        sendMail(type, name, contact, content, plan, date);
         show('문의가 접수됐습니다.', 'ok');
         form.reset();
         document.getElementById('cnt1').textContent = '0';
